@@ -276,7 +276,6 @@ def getdata(mca):
         while "<<END>>" not in line:
             try: ObjectData.append(int(line))
             except: 
-                logging.warning("Mca file {} could not be read.".format(mca))
                 datafile.close()
                 return mca
             line = datafile.readline()
@@ -472,7 +471,7 @@ if __name__.endswith('__main__'):
 
     """ Build spectrum file path """
 
-    spectrum_path = os.getcwd() + "\\" + spectrum_name
+    spectrum_path = os.getcwd() + "/" + spectrum_name
     
     """ Create data """
 
