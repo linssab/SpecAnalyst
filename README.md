@@ -5,7 +5,7 @@ An XRMC testfile is available [here](../master/newtest_1.txt)
 
 ## Installation:
 
-This script has external dependencies.<br>
+This script has external dependencies and runs with Python 3x<br>
 Xraylib package is optional to run the script, but strongly recommended. You can find it available at [this link](https://github.com/tschoonj/xraylib/wiki)<br>
 Numpy, matplotlib and scipy packages are necessary.<br>
 If you lack any of the three packages mentioned, simply install them via pip through your terminal:<br>
@@ -20,6 +20,7 @@ If you lack any of the three packages mentioned, simply install them via pip thr
 In the terminal type:<br>
 <br>
 `python SpecAnalysis.py -s "filename"`<br>
+Using the test file provided: `python SpecAnalysis.py -s newtest_1.txt`<br>
 <br>
 The spectrum file must be in the same directory as the script.<br>
 If you wish to plot the spectrum without the background approximation line, type:<br>
