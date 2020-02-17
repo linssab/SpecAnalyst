@@ -250,6 +250,7 @@ def getdata(mca):
     name = str(mca)
     name = name.replace('_',' ')
     name = name.replace('\\',' ')
+    name = name.replace('/',' ')
     name = name.split()
     
     # custom MC generated files
@@ -259,27 +260,36 @@ def getdata(mca):
         lines = datafile.readlines()
         for line in lines:
             line = line.split()
-            counts = float(line[1])
+            try: counts = float(line[1])
+            except: counts = float(line[0])
             counts = counts * 10e3
             Data.append(counts)
         Data = np.asarray(Data)
 
-    # this works for the mca files
+    # this works for mca files
     else:
         ObjectData=[]
         datafile = open(mca)
         line = datafile.readline()
-        while "<<DATA>>" not in line:
+        line = line.replace("\r","")
+        line = line.replace("\n","")
+        if "<<PMCA SPECTRUM>>" in line:
+            while "<<DATA>>" not in line:
+                line = datafile.readline()
+                if line == "": break
             line = datafile.readline()
-            if line == "": break
-        line = datafile.readline()
-        while "<<END>>" not in line:
-            try: ObjectData.append(int(line))
-            except: 
-                datafile.close()
-                return mca
-            line = datafile.readline()
-            if line == "": break
+            while "<<END>>" not in line:
+                try: ObjectData.append(int(line))
+                except ValueError as exception:
+                    datafile.close()
+                    raise exception.__class__.__name__
+                line = datafile.readline()
+                if line == "": break
+        elif line.isdigit():
+            while "<<END>>" not in line:
+                ObjectData.append(int(line))
+                line = datafile.readline()
+                if line == "": break
         Data = np.asarray(ObjectData)
     datafile.close()
     return Data
@@ -369,7 +379,9 @@ def getcalibration():
         """ These parameters are to calibrate specific Monte Carlo simulated spectrum,
         change accordingly to your spectrum files """
 
-        param = [[41,1.6],[152,6.4],[174,6.92],[202, 8.04],[280, 11.16],[555,22.16]] 
+        #param = [[41,1.6],[152,6.4],[174,6.92],[202, 8.04],[280, 11.16],[555,22.16]] 
+        param = [[202,8.05],[262, 10.493],[315, 12.615],[632,25.311]] #xrmc_Rh
+        #param = [[221,8.05],[288, 10.49],[346, 12.6],[695,25.31]] #non-PMCA mca 
     elif configdict['calibration'] == 'from_source':
 
         """ Gets the calibration parameters from the spectrum file header. Tested with 
