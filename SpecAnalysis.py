@@ -64,12 +64,18 @@ def strip(an_array,cycles,width):
     # W VALUE MUST BE LARGER THAN 2 AND ODD, SINCE 3 IS THE MINIMUM  #
     # SATISFACTORY POLYNOMIAL DEGREE TO SMOOTHEN THE DATA            #
     ##################################################################
-    
+
+    size = an_array.shape[0]
     for k in range(cycles):
-        l = width
-        for l in range(an_array.shape[0]-width):
-            m = (an_array[l-width] + an_array[l+width])/2
-            if an_array[l] > m and an_array[l] !=0: an_array[l] = m
+        if k >= cycles-8:
+            width = int(width/np.sqrt(2))
+        for l in range(0, size):
+            if l-width < 0: low = 0
+            else: low = l-width
+            if l+width >= size: high = size-1
+            else: high = l+width
+            m = (an_array[low] + an_array[high])/2
+            if an_array[l] > m: an_array[l] = m
     return an_array
 
 def peakstrip(an_array,cycles,width,*args):
@@ -86,6 +92,8 @@ def peakstrip(an_array,cycles,width,*args):
     OUTPUT:
         snip_bg; np.array
     """
+
+    TEST = False
 
     #initialize snip_bg array
     snip_bg = np.zeros(an_array.shape[0])
@@ -111,16 +119,6 @@ def peakstrip(an_array,cycles,width,*args):
     #transform back
     snip_bg **= 2
    
-    #apply savgol filter to final background
-    if len(args) > 0:
-        savgol_window,order = args[0],args[1]
-        try: smooth_sqr = scipy.signal.savgol_filter(snip_bg,savgol_window,order)
-        except:
-            raise ValueError
-    else: 
-        snip_bg, width = 5,5
-        smooth_sqr = scipy.signal.savgol_filter(snip_bg,width,3)
-    
     return snip_bg
 
 def sigma(energy):
