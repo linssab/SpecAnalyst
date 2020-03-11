@@ -18,6 +18,15 @@ import EnergyLib
 3rd; verify configuration parameters - configdict and lookup variables -
 4th; run getpeakarea() 
 """
+global __FANO__
+global __NOISE__
+
+__NOISE__, __FANO__ = 80, 0.114
+
+def updatefano(x,y):
+    global __FANO__, __NOISE__
+    __FANO__, __NOISE__ = x, y
+    return
 
 def function(ydata,x):
     
@@ -156,9 +165,8 @@ def peakstrip(an_array,cycles,width,*args):
     return snip_bg
 
 def sigma(energy):
-    NOISE = 80
-    FANO = 0.114
-    return math.sqrt(((NOISE/2.3548)**2)+(3.85*FANO*energy))
+    global __NOISE__, __FANO__
+    return math.sqrt(((__NOISE__/2.3548)**2)+(3.85*__FANO__*energy))
 
 def shift_center(xarray,yarray):
     
@@ -219,7 +227,7 @@ def setROI(lookup,xarray,yarray,localconfig):
             shift = (0,0,lookupcenter)
             isapeak = False
         
-    lowx_idx = lowx_idx + 3
+    lowx_idx = lowx_idx + 2
     highx_idx = highx_idx - 3
     peak_center = shift[2]-3
     return lowx_idx,highx_idx,peak_center,isapeak
@@ -279,11 +287,16 @@ def getpeakarea(lookup,data,energyaxis,continuum,localconfig,RAW,usedif2,dif2):
     return Area,idx
 
 def getdata(mca):
+    
+    """ Extract the data contained in spectrum files 
+    INPUT:
+        mca; path
+    OUTPUT:
+        Data; 1D-array """
+
     name = str(mca)
+    name = name.split("\\")[-1]
     name = name.replace('_',' ')
-    name = name.replace('\\',' ')
-    name = name.replace('/',' ')
-    name = name.split()
     
     # custom MC generated files
     if 'test' in name or 'obj' in name or 'newtest' in name:
@@ -298,13 +311,15 @@ def getdata(mca):
             Data.append(counts)
         Data = np.asarray(Data)
 
-    # this works for mca files
+    # this works for mca extension files
     else:
         ObjectData=[]
         datafile = open(mca)
         line = datafile.readline()
         line = line.replace("\r","")
         line = line.replace("\n","")
+
+        # AMPTEK files start with this tag
         if "<<PMCA SPECTRUM>>" in line:
             while "<<DATA>>" not in line:
                 line = datafile.readline()
@@ -317,11 +332,25 @@ def getdata(mca):
                     raise exception.__class__.__name__
                 line = datafile.readline()
                 if line == "": break
+
+        # Works if file is just counts per line
         elif line.isdigit():
             while "<<END>>" not in line:
                 ObjectData.append(int(line))
                 line = datafile.readline()
                 if line == "": break
+        
+        # if file has two columns separated by space or tab
+        elif "\t" in line or " " in line: 
+            while "<<END>>" not in line:
+                counts = line.split("\t")[-1]
+                if counts.isdigit(): ObjectData.append(int(counts))
+                else:
+                    counts = line.split(" ")[-1]
+                    ObjectData.append(int(counts))
+                line = datafile.readline()
+                if line == "": break
+
         Data = np.asarray(ObjectData)
     datafile.close()
     return Data
@@ -405,15 +434,32 @@ def linregress(x, y, sigmay=None, full_output=False):
     ddict["sigma_slope"] = np.sqrt(S / SSxx)
     return slope, intercept, r_value, ddict
 
-def getcalibration():
-    if configdict['calibration'] == 'manual':
+def getcalibration(cfile=None):
+    param = []
+    
+    if configdict['calibration'] == 'manual' and cfile==None:
 
         """ These parameters are to calibrate specific Monte Carlo simulated spectrum,
         change accordingly to your spectrum files """
 
-        #param = [[41,1.6],[152,6.4],[174,6.92],[202, 8.04],[280, 11.16],[555,22.16]] 
-        param = [[202,8.05],[262, 10.493],[315, 12.615],[632,25.311]] #xrmc_Rh
-        #param = [[221,8.05],[288, 10.49],[346, 12.6],[695,25.31]] #non-PMCA mca 
+        param = [[41,1.6],[152,6.4],[174,6.92],[202, 8.04],[280, 11.16],[555,22.16]] 
+
+    elif configdict['calibration'] == 'manual' and cfile!=None:
+        calib_file = open(cfile,"r")
+        line = calib_file.readline()
+        while line != "":
+            line = line.replace("\r","")
+            line = line.replace("\n","")
+            line = line.replace("\t"," ")
+            anchor = line.split(" ")
+            for number in anchor:
+                if not number.isdigit():
+                    line = calib_file.readline()
+                    break
+            param.append(anchor)
+            line = calib_file.readline()
+        calib_file.close()
+
     elif configdict['calibration'] == 'from_source':
 
         """ Gets the calibration parameters from the spectrum file header. Tested with 
@@ -451,7 +497,7 @@ def getcalibration():
         raise ValueError
     return param
 
-def calibrate(nchan):
+def calibrate(nchan,cfile=None):
     
     """
     Returns the energy axis and gain of the calibrated axis
@@ -459,7 +505,7 @@ def calibrate(nchan):
     or from the mca files is calibration is set to from_source
     """
 
-    param = getcalibration()
+    param = getcalibration(cfile)
     x=[]
     y=[]
     for i in range(len(param)):
@@ -497,12 +543,24 @@ if __name__.endswith('__main__'):
             if arg == "-s": 
                 try: spectrum_name = sys.argv[sys.argv.index(arg)+1]
                 except: raise ValueError("No file name given")
+            elif arg == "-cal":
+                found = False
+                try: cfile = sys.argv[sys.argv.index(arg)+1]
+                except: raise ValueError("No calibration file given")
+                for parent, child, files in os.walk(os.getcwd()):
+                    if cfile in files: 
+                        configdict["calibration"] = "manual"
+                        cfile = os.path.join(parent, cfile)
+                        found = True
+                        break
+                if found == False: raise FileNotFoundError("Could not locate file {}".format(cfile))
             elif arg == "-e":
                 try: configdict["element"] = sys.argv[sys.argv.index(arg)+1]
                 except: raise ValueError("No element given")
             elif arg == "-nobg": configdict["bgstrip"] = None
             elif arg == "-nofill": configdict["fill"] = False
             elif arg == "-fs": configdict["calibration"] = "from_source"
+            elif arg == "-nosi": updatefano(0.129, 80)
             elif arg == "-w": 
                 configdict["write"] = True
                 try: output_name = sys.argv[sys.argv.index(arg)+1]
@@ -515,12 +573,11 @@ if __name__.endswith('__main__'):
 
     """ Build spectrum file path """
 
-    spectrum_path = os.getcwd() + "/" + spectrum_name
+    spectrum_path = os.path.join(os.getcwd(),spectrum_name)
     
     """ Create data """
-
     data = getdata(spectrum_path) 
-    energyaxis, GAIN = calibrate(len(data))
+    energyaxis, GAIN = calibrate(len(data),cfile)
     if configdict["bgstrip"] == "SNIPBG":
 
         """ peakstrip parameters: 
@@ -559,8 +616,8 @@ if __name__.endswith('__main__'):
 
     if configdict["write"] == True:
         clean = data-bg
-        try: output_file = open(os.getcwd() + "\\" + output_name, "+w")
-        except: raise OSError("Cannot create {}".format(os.getcwd()+"\\"+output_name))
+        try: output_file = open(os.path.join(os.getcwd(),output_name), "+w")
+        except: raise OSError("Cannot create {}".format(os.path.join(os.getcwd(),output_name)))
         output_file.write("<<START>>\r")
         for i in range(len(data)):
             output_file.write("{}\r".format(data[i]-bg[i]))
@@ -574,8 +631,9 @@ if __name__.endswith('__main__'):
     plt.semilogy(energyaxis, bg, label="Continuum", color="yellow")
     if configdict["write"] == True:
         plt.clf()
-        plt.plot(energyaxis, clean, label="Cleaned Spec", color="orange")
-        plt.plot(energyaxis, data, label=spectrum_name, color="blue")
+        plt.semilogy(energyaxis, clean, label="Cleaned Spec", color="orange")
+        plt.semilogy(energyaxis, data, label=spectrum_name, color="blue")
+        plt.semilogy(energyaxis, bg, label="Continuum", color="yellow")
     elif configdict["element"] != None: 
         if peak_indexes[3] == True: 
             plt.semilogy(

@@ -12,6 +12,7 @@ try:
     import xraylib as xlib
     xlib.SetErrorMessages(0)
     xrlib_ = True
+    print("Loaded xraylib.")
 except: 
     print("Failed to load xraylib module, using internal values.")
     xrlib_ = False
