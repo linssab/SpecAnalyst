@@ -31,6 +31,19 @@ By default, the energy axis is set according to a list of anchors already define
 <br>
 `python SpecAnalysis.py -s "filename" -fs`<br>
 <br>
+If desired, an external calibration file can be used, avoiding manually changing the anchors inside the code. The file must be structured as a two-column file, where the left column represents the channel and the right column, its corresponding energy in KeV.<br>
+The program will find the calibration file in the folder tree, no need to specify its location as long as the file is under the root folder.<br>
+<br>
+**Example:<br>
+Channel - Energy<br>
+262 6.04<br>
+332 8.60**<br>
+<br>
+The file must me loaded following the `-cal` command:<br>
+<br>
+`python SpecAnalysis.py -s "filename" -cal "calibration file name"`<br>
+<br>
+
 ### Wipe background and save:
 You can save the spectrum file minus the background approximation by typing:<br>
 <br>
@@ -45,3 +58,9 @@ To plot the spectrum with the net area, type:<br>
 `python SpecAnalysis.py -s "filename" -e "element"`<br>
 <br>
 To get rid of the fill area, add the `-nofill` command. This opstion can be used together with `-nobg`, to get the peak total area, instead of the net area.<br>
+
+### Problems with peak detection:
+Sometimes, because calibration is not perfect, the program may miss a the peak. In any case, the **RANGE** where the peak should be, at its full-width at half-maximum (FWHM) is shown by two dashed lines. The FWHM for the peak gaussian approximation is calculated considering the detector used was a Silicon Drift Detector (SDD). If this is not the case for the spectrum being evaluated, use the `-nosi` command to slighty increase the FANO factor.<br>
+<br>
+`python SpecAnalysis.py -s "filename" -e "element" -nosi`<br>
+<br>
