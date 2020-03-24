@@ -12,7 +12,6 @@ If you lack any of the three packages mentioned, simply install them via pip thr
 <br>
 `pip install numpy`<br>
 `pip install matplotlib`<br>
-`pip install scipy`<br>
 <br>
 ## Execution:
 
